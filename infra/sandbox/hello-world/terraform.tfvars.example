@@ -1,0 +1,5 @@
+location             = ""
+app_service_plan_sku = ""
+acr_sku              = ""
+name_suffix          = ""
+allowed_ip_cidr      = ""

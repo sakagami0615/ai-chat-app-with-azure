@@ -57,8 +57,13 @@ if [[ "$1" == "output" ]]; then
 elif [[ "$1 $2" == "state show" ]]; then
   printf '    id = "/subscriptions/%s/resourceGroups/rg-aichat-sandbox-abc123"\\n' "$MOCK_ACCOUNT_ID"
   printf '    name = "rg-aichat-sandbox-abc123"\\n'
-elif [[ "$1 $2" == "state list" && "${MOCK_STATE_RESOURCES:-0}" == "1" ]]; then
-  printf '%s\\n' azurerm_resource_group.sandbox
+elif [[ "$1 $2" == "state list" ]]; then
+  if [[ "${MOCK_STATE_LIST_EXIT:-0}" != "0" ]]; then
+    exit "${MOCK_STATE_LIST_EXIT:-0}"
+  fi
+  if [[ "${MOCK_STATE_RESOURCES:-0}" == "1" ]]; then
+    printf '%s\\n' azurerm_resource_group.sandbox
+  fi
 fi
 ''',
         )
@@ -123,6 +128,14 @@ fi
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("state subscription", result.stderr.lower())
+        self.assertNotIn("terraform apply", self.command_log())
+
+    def test_up_stops_when_existing_state_cannot_be_read(self):
+        (self.sandbox / "terraform.tfstate").write_text("{}")
+        (self.sandbox / "terraform.tfvars").write_text('name_suffix = "abc123"')
+        result = self.run_manage("up", MOCK_STATE_LIST_EXIT="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("state", result.stderr.lower())
         self.assertNotIn("terraform apply", self.command_log())
 
     def test_missing_state_stops_deploy_before_build(self):

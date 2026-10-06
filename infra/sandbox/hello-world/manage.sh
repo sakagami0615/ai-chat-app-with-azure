@@ -56,8 +56,12 @@ preflight() {
 up() {
   [[ -f "$sandbox_dir/terraform.tfvars" ]] || fail "Copy terraform.tfvars.example to terraform.tfvars and fill in its values"
   tf init -lockfile=readonly
-  if [[ -f "$sandbox_dir/terraform.tfstate" ]] && [[ -n "$(tf state list)" ]]; then
-    verify_state_subscription
+  if [[ -f "$sandbox_dir/terraform.tfstate" ]]; then
+    local state_resources
+    state_resources=$(tf state list) || fail "Cannot read the existing sandbox Terraform state"
+    if [[ -n "$state_resources" ]]; then
+      verify_state_subscription
+    fi
   fi
   printf 'Subscription: %s\n' "$AZURE_SUBSCRIPTION_ID"
   tf apply -auto-approve -input=false -var "subscription_id=$AZURE_SUBSCRIPTION_ID"

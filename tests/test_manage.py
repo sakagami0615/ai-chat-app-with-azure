@@ -52,11 +52,13 @@ if [[ "$1" == "output" ]]; then
     registry_login_server) printf '%s\\n' aichatsbxabc123.azurecr.io ;;
     web_app_name) printf '%s\\n' app-aichat-sbx-abc123 ;;
     web_app_url) printf '%s\\n' https://app-aichat-sbx-abc123.azurewebsites.net ;;
-    subscription_id) printf '%s\\n' "$MOCK_ACCOUNT_ID" ;;
+    subscription_id) printf '%s\\n' "${MOCK_STATE_SUBSCRIPTION_ID:-$MOCK_ACCOUNT_ID}" ;;
   esac
 elif [[ "$1 $2" == "state show" ]]; then
   printf '    id = "/subscriptions/%s/resourceGroups/rg-aichat-sandbox-abc123"\\n' "$MOCK_ACCOUNT_ID"
   printf '    name = "rg-aichat-sandbox-abc123"\\n'
+elif [[ "$1 $2" == "state list" && "${MOCK_STATE_RESOURCES:-0}" == "1" ]]; then
+  printf '%s\\n' azurerm_resource_group.sandbox
 fi
 ''',
         )
@@ -108,6 +110,21 @@ fi
         self.assertIn("subscription", result.stderr.lower())
         self.assertNotIn("terraform apply", self.command_log())
 
+    def test_up_rejects_state_from_another_subscription(self):
+        (self.sandbox / "terraform.tfstate").write_text("{}")
+        (self.sandbox / "terraform.tfvars").write_text('name_suffix = "abc123"')
+        new_subscription = "22222222-2222-2222-2222-222222222222"
+        result = self.run_manage(
+            "up",
+            subscription_id=new_subscription,
+            MOCK_ACCOUNT_ID=new_subscription,
+            MOCK_STATE_SUBSCRIPTION_ID=SUBSCRIPTION_ID,
+            MOCK_STATE_RESOURCES="1",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("state subscription", result.stderr.lower())
+        self.assertNotIn("terraform apply", self.command_log())
+
     def test_missing_state_stops_deploy_before_build(self):
         result = self.run_manage("deploy")
         self.assertNotEqual(result.returncode, 0)
@@ -119,6 +136,7 @@ fi
         result = self.run_manage("deploy", MOCK_ACR_EXIT="17")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("az acr build", self.command_log())
+        self.assertIn("--file Dockerfile", self.command_log())
         self.assertNotIn("az webapp config", self.command_log())
 
     def test_partial_state_can_be_destroyed_without_outputs(self):

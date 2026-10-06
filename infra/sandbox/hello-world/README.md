@@ -38,7 +38,7 @@ make down
 
 ## 受け入れ確認
 
-- `terraform fmt -check -recursive` と `terraform validate` が成功する。
+- `infra/sandbox/hello-world/` で `terraform init -backend=false` の後、`terraform fmt -check -recursive`、`terraform validate`、`terraform test` が成功する。テストは mock provider を使い、Azure リソースを作成しません。
 - 許可した IP から Web App URL を開き、`Hello World` が表示され、ボタンを押すと回数が増える。
 - 別の接続元 IP からメインサイトと SCM サイトへのアクセスが拒否される。別 IP を用意できなければ実接続の確認は未検証と記録する。
 - ACR の admin user が無効で、Web App の System-assigned Managed Identity に ACR スコープの `AcrPull` が付き、イメージが pull されている。

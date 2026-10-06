@@ -55,8 +55,11 @@ preflight() {
 
 up() {
   [[ -f "$sandbox_dir/terraform.tfvars" ]] || fail "Copy terraform.tfvars.example to terraform.tfvars and fill in its values"
-  printf 'Subscription: %s\n' "$AZURE_SUBSCRIPTION_ID"
   tf init -lockfile=readonly
+  if [[ -f "$sandbox_dir/terraform.tfstate" ]] && [[ -n "$(tf state list)" ]]; then
+    verify_state_subscription
+  fi
+  printf 'Subscription: %s\n' "$AZURE_SUBSCRIPTION_ID"
   tf apply -auto-approve -input=false -var "subscription_id=$AZURE_SUBSCRIPTION_ID"
   printf 'Resource Group: %s\n' "$(tf_output resource_group_name)"
   printf 'Web App: %s\n' "$(tf_output web_app_url)"
@@ -64,6 +67,7 @@ up() {
 
 deploy() {
   require_state
+  tf init -lockfile=readonly
   verify_state_subscription
   [[ -z "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ]] || fail "Commit product changes before deploying a commit SHA image"
 
@@ -77,7 +81,7 @@ deploy() {
   [[ "$tag" =~ ^[0-9a-f]{12}$ ]] || fail "Cannot determine a 12-character commit SHA"
   image="$login_server/hello-world:$tag"
 
-  az acr build --subscription "$AZURE_SUBSCRIPTION_ID" --registry "$registry" --image "hello-world:$tag" --file "$repo_root/Dockerfile" "$repo_root"
+  az acr build --subscription "$AZURE_SUBSCRIPTION_ID" --registry "$registry" --image "hello-world:$tag" --file Dockerfile "$repo_root"
   az webapp config container set --subscription "$AZURE_SUBSCRIPTION_ID" --resource-group "$group" --name "$web_app" --container-image-name "$image"
   managed_identity=$(az webapp config show --subscription "$AZURE_SUBSCRIPTION_ID" --resource-group "$group" --name "$web_app" --query acrUseManagedIdentityCreds --output tsv)
   [[ "$managed_identity" == "true" ]] || fail "Managed Identity ACR pull setting is not enabled after image update"
@@ -88,6 +92,7 @@ deploy() {
 
 down() {
   require_state
+  tf init -lockfile=readonly
   verify_state_subscription
   [[ -f "$sandbox_dir/terraform.tfvars" ]] || fail "terraform.tfvars is required to destroy the sandbox"
   local group exists

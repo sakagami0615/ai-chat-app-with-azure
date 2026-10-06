@@ -4,7 +4,7 @@ Hello World sandbox（#62）をAzureへデプロイし、ブラウザでStreamli
 
 所要時間の目安は30〜40分です。App Service Plan（B1）とACR（Basic）は、構築してから片付けるまで課金されます。確認が終わったら、必ず「7. 片付ける」まで実行してください。
 
-`make up`と`make down`は確認のプロンプトを出さずに、apply・destroyを実行します（`-auto-approve`）。実行前に、対象のサブスクリプションが正しいことを確認してください。
+`make up`と`make down`は確認のプロンプトを出さずに、apply・destroyを実行します（`-auto-approve`）。Issue #62の要件に従い、実行前にオーナーの明示的な承認を得てください。承認を得たうえで、対象のサブスクリプションが正しいことも確認してください。承認がない場合は実行しないでください。
 
 ## 1. 準備（初回のみ）
 
@@ -13,6 +13,9 @@ Hello World sandbox（#62）をAzureへデプロイし、ブラウザでStreamli
 ```bash
 # Azure CLI
 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+# Terraformのzipを展開するためにunzipを用意する
+sudo apt-get update && sudo apt-get install -y unzip
 
 # Terraform 1.16.5（versions.tfでバージョンを固定しているため、このバージョンを入れる）
 curl -sSLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/1.16.5/terraform_1.16.5_linux_amd64.zip
@@ -198,7 +201,7 @@ make down
 | `make deploy`のヘルスチェックがタイムアウトする | AcrPullのロール割り当てが、まだ反映されていない可能性があります。`az webapp log tail -g <Resource Group名> -n <Web App名>`でログを確認し、数分待ってから`make deploy`を再実行します。 |
 | 自分のPCからも403になる | 接続元IPが変わっています。`terraform.tfvars`の`allowed_ip_cidr`を更新し、`make up`を再実行します。 |
 | 画面は出るが、ボタンを押しても回数が増えない | WebSocketが通っていません。`az webapp config show ... --query webSocketsEnabled`が`true`になっているか確認します。 |
-| `make down`の途中で失敗した | もう一度`make down`を実行します。それでも残る場合は、表示されたResource Group名で`az group delete -n <Resource Group名>`を実行します。 |
+| `make down`の途中で失敗した | まずエラー原因とTerraform stateを確認し、修正後に`make down`を再実行します。手動削除は最終手段です。実行する場合は、Azure CLIで選択中のサブスクリプションIDが`AZURE_SUBSCRIPTION_ID`と一致することを確認し、`make down`が表示した名前がこのsandbox専用の`rg-aichat-sandbox-<name_suffix>`であることを確認してください。確認後に限り、`GROUP="<確認したResource Group名>"`として`az group delete --subscription "$AZURE_SUBSCRIPTION_ID" --name "$GROUP" --yes`を実行します。Terraform stateは削除済みリソースを記録したままになるため、stateを整理・復旧するまで`make up`を再実行しないでください。 |
 
 ## 9. 結果の記録
 

@@ -5,3 +5,18 @@
 .env
 .env.*
 !.env.example
+
+# Python runtime files
+__pycache__/
+*.pyc
+
+# Local Terraform data
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+*.tfvars
+*.tfvars.json
+*.tfplan
+crash.log
+crash.*.log
